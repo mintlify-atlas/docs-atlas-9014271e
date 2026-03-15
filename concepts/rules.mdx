@@ -1,0 +1,285 @@
+---
+title: Rules
+description: Complete reference for all 11 rule types — what each rule does, when to use it, and how to configure its parameters.
+---
+
+Rules are user-defined preferences that guide the scheduling optimizer. Each rule has a `type`, a `priorityOrder` (1 = highest priority), and optional `parameters`.
+
+The engine uses rules in two ways:
+
+- **Pruning (hard constraints):** `AVOID_PROFESSOR` and `LUNCH_BREAK_PROTECTED` remove ineligible sections before backtracking begins.
+- **Scoring (soft constraints):** All other rules (and also the two above) contribute a weighted score to each valid combination.
+
+## Rule overview
+
+| Type | Requires parameters | Description |
+|---|---|---|
+| `NO_GAPS` | No | Penalizes idle time between back-to-back classes on the same day |
+| `NO_EARLY_MORNINGS` | No | Penalizes classes that start before 8:00 |
+| `NO_LATE_EVENINGS` | No | Penalizes classes that end after 18:00 |
+| `PREFER_MORNING` | No | Rewards schedules where classes start between 6:00 and 14:00 |
+| `PREFER_AFTERNOON` | No | Rewards schedules where classes start between 14:00 and 22:00 |
+| `COMPACT_DAYS` | No | Rewards using fewer days of the week |
+| `BALANCED_LOAD` | No | Rewards even distribution of class hours across active days |
+| `MIN_FREE_DAY` | No (optional) | Rewards having at least one completely free day; optionally targets a specific day |
+| `MAX_CONSECUTIVE_HOURS` | Yes (`number`) | Penalizes consecutive class blocks that exceed the given hour limit |
+| `LUNCH_BREAK_PROTECTED` | Yes (`timeRange`) | Removes and penalizes any section that overlaps the protected time window |
+| `AVOID_PROFESSOR` | Yes (`professorSelect`) | Removes and penalizes any section taught by the specified professor |
+
+## Creating a rule
+
+Rules are created via `POST /api/rules`. The request body must include `type`, `priorityOrder`, and `parameters` (or `null` for parameter-free rules):
+
+```json
+{
+  "type": "NO_GAPS",
+  "priorityOrder": 1,
+  "parameters": null
+}
+```
+
+The `priorityOrder` field determines how much weight the rule carries in scoring:
+
+```
+weight = 100 / priorityOrder
+```
+
+Assign `priorityOrder: 1` to the rule you care about most.
+
+## Rule reference
+
+<AccordionGroup>
+
+  <Accordion title="NO_GAPS — avoid gaps between classes">
+    Penalizes idle time between consecutive classes on the same day. For each day in the schedule, the strategy sorts sections by start time and sums up any gaps greater than zero minutes. Each gap-hour reduces the score by 0.25, down to a minimum of 0.
+
+    **Use when:** you want to avoid waiting between classes — for example, if you commute and want to minimize time spent on campus.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "NO_GAPS",
+      "priorityOrder": 1,
+      "parameters": null
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="NO_EARLY_MORNINGS — avoid classes before 8:00">
+    Penalizes any section whose start time is before 08:00. The score decreases for each early-morning section in the combination.
+
+    **Use when:** you prefer not to attend classes in the early morning hours.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "NO_EARLY_MORNINGS",
+      "priorityOrder": 2,
+      "parameters": null
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="NO_LATE_EVENINGS — avoid classes ending after 18:00">
+    Penalizes any section whose end time is after 18:00. The score decreases for each late-evening section.
+
+    **Use when:** you want to keep evenings free — for example, for work, family, or extracurricular activities.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "NO_LATE_EVENINGS",
+      "priorityOrder": 2,
+      "parameters": null
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="PREFER_MORNING — reward morning schedules (6:00–14:00)">
+    Rewards combinations where a higher proportion of sections start between 06:00 and 14:00. The score equals the fraction of sections that fall in this window (e.g., 3 out of 4 sections → score 0.75).
+
+    **Use when:** you are most productive in the morning and want your classes concentrated early in the day.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "PREFER_MORNING",
+      "priorityOrder": 1,
+      "parameters": null
+    }
+    ```
+
+    <Note>
+      `PREFER_MORNING` and `PREFER_AFTERNOON` can be active simultaneously, but they will compete for the same sections. Assign them different priority orders to express which preference matters more.
+    </Note>
+  </Accordion>
+
+  <Accordion title="PREFER_AFTERNOON — reward afternoon schedules (14:00–22:00)">
+    Rewards combinations where a higher proportion of sections start between 14:00 and 22:00. The score equals the fraction of sections that fall in this window.
+
+    **Use when:** you function better in the afternoon or need mornings free for other commitments.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "PREFER_AFTERNOON",
+      "priorityOrder": 1,
+      "parameters": null
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="COMPACT_DAYS — reward fewer active days">
+    Rewards schedules that use as few days of the week as possible. Each additional day beyond the first reduces the score by 0.17 (minimum 0). A schedule with all classes on a single day scores 1.0; a schedule spread across 7 days scores approximately 0.
+
+    **Use when:** you want to concentrate classes on fewer days — for example, to have more complete free days.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "COMPACT_DAYS",
+      "priorityOrder": 2,
+      "parameters": null
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="BALANCED_LOAD — reward even hour distribution">
+    Rewards combinations where class hours are distributed evenly across the days that have classes. Schedules with one very heavy day and several light days score lower than schedules where each active day has a similar number of hours.
+
+    **Use when:** you want to avoid cramming too many hours into a single day.
+
+    **Parameters:** none
+
+    ```json
+    {
+      "type": "BALANCED_LOAD",
+      "priorityOrder": 3,
+      "parameters": null
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="MIN_FREE_DAY — reward having a free day">
+    Rewards schedules that leave at least one day of the week completely free of classes. Optionally, you can specify a preferred free day using a `daySelect` parameter (1 = Monday through 7 = Sunday). If no parameter is provided, any free day satisfies the rule.
+
+    **Use when:** you need a specific weekday off (e.g., Wednesday for lab work), or simply want a guaranteed day without classes.
+
+    **Parameter:** optional `daySelect` — integer 1 (Monday) through 7 (Sunday)
+
+    <CodeGroup>
+
+    ```json Without parameter
+    {
+      "type": "MIN_FREE_DAY",
+      "priorityOrder": 1,
+      "parameters": null
+    }
+    ```
+
+    ```json With preferred day (Wednesday = 3)
+    {
+      "type": "MIN_FREE_DAY",
+      "priorityOrder": 1,
+      "parameters": {
+        "type": "daySelect",
+        "value": 3
+      }
+    }
+    ```
+
+    </CodeGroup>
+  </Accordion>
+
+  <Accordion title="MAX_CONSECUTIVE_HOURS — limit back-to-back class blocks">
+    Penalizes any day where back-to-back sections (with no gap between them) form a block longer than the configured limit. Each violation reduces the score by 0.33, down to a minimum of 0. Defaults to 4 hours if no parameter is provided.
+
+    **Use when:** you want to avoid mental fatigue from sitting through too many hours of class without a break.
+
+    **Parameter:** required `number` — integer 1 through 8 (maximum consecutive hours allowed)
+
+    ```json
+    {
+      "type": "MAX_CONSECUTIVE_HOURS",
+      "priorityOrder": 2,
+      "parameters": {
+        "type": "number",
+        "value": 3
+      }
+    }
+    ```
+
+    <Tip>
+      A value of `2` is strict: any block of three or more consecutive hours is penalized. A value of `4` is permissive and matches the default behavior when no parameter is supplied.
+    </Tip>
+  </Accordion>
+
+  <Accordion title="LUNCH_BREAK_PROTECTED — protect a time window from classes">
+    Acts as both a **pruning rule** and a **scoring rule**. In the pruning phase, every section whose time range overlaps with the protected window is removed entirely from consideration. In the scoring phase, the strategy additionally penalizes any remaining overlap.
+
+    **Use when:** you need a guaranteed break — for example, 12:00–13:30 for lunch — and cannot afford to have any class scheduled during that window.
+
+    **Parameter:** required `timeRange` — `{ start: "HH:MM", end: "HH:MM" }`
+
+    ```json
+    {
+      "type": "LUNCH_BREAK_PROTECTED",
+      "priorityOrder": 1,
+      "parameters": {
+        "type": "timeRange",
+        "value": {
+          "start": "12:00",
+          "end": "13:30"
+        }
+      }
+    }
+    ```
+
+    <Warning>
+      Because this rule prunes sections before backtracking, setting an overly wide window (e.g., 08:00–18:00) may eliminate all sections for a subject and cause a `400 Bad Request` error. Narrow the window or reduce its priority if you encounter this.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="AVOID_PROFESSOR — exclude a professor's sections">
+    Acts as both a **pruning rule** and a **scoring rule**. In the pruning phase, all sections taught by the specified professor are removed before backtracking begins. The professor is identified by their UUID.
+
+    **Use when:** you want to avoid being scheduled with a specific professor, regardless of time slot.
+
+    **Parameter:** required `professorSelect` — the professor's UUID string
+
+    ```json
+    {
+      "type": "AVOID_PROFESSOR",
+      "priorityOrder": 1,
+      "parameters": {
+        "type": "professorSelect",
+        "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      }
+    }
+    ```
+
+    <Note>
+      You can retrieve professor UUIDs from `GET /api/professors`. If the specified professor has no sections for the requested subjects, the rule has no effect.
+    </Note>
+  </Accordion>
+
+</AccordionGroup>
+
+## Parameter types reference
+
+The `parameters` field accepts one of four typed shapes, defined in `src/types/rule-parameter.types.ts`:
+
+| `type` value | TypeScript type | `value` format | Used by |
+|---|---|---|---|
+| `"number"` | `NumberParameter` | Integer | `MAX_CONSECUTIVE_HOURS` |
+| `"timeRange"` | `TimeRangeParameter` | `{ start: "HH:MM", end: "HH:MM" }` | `LUNCH_BREAK_PROTECTED` |
+| `"daySelect"` | `DaySelectParameter` | Integer 1–7 | `MIN_FREE_DAY` |
+| `"professorSelect"` | `ProfessorSelectParameter` | UUID string | `AVOID_PROFESSOR` |
+
+Rules that do not require parameters must send `"parameters": null`.

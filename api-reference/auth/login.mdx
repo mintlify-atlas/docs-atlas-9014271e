@@ -1,0 +1,74 @@
+---
+title: Login
+description: Authenticate with a username and password to receive an access token.
+---
+
+`POST /api/auth/login`
+
+<Note>No authentication is required for this endpoint.</Note>
+
+## Request body
+
+<ParamField body="username" type="string" required>
+  The account username.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The account password.
+</ParamField>
+
+## Response
+
+Returns a short-lived access token in the response body. A `refreshToken` is also issued as an HttpOnly cookie and is used by the [refresh](/api-reference/auth/refresh) endpoint.
+
+<ResponseField name="accessToken" type="string">
+  JWT access token valid for 15 minutes. Include this as a Bearer token in the `Authorization` header for authenticated requests.
+</ResponseField>
+
+### Refresh token cookie
+
+The server sets a `refreshToken` cookie with the following attributes:
+
+| Attribute  | Value                                |
+| ---------- | ------------------------------------ |
+| `HttpOnly` | `true` — not accessible via JS       |
+| `SameSite` | `Strict`                             |
+| `Secure`   | `true` in production                 |
+| `Max-Age`  | 7 days                               |
+
+<Warning>
+  The refresh token is transmitted via cookie only. Do not attempt to read or store it in JavaScript.
+</Warning>
+
+## Example
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url http://localhost:3000/api/auth/login \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "username": "jhojanRop",
+    "password": "12345678"
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+</ResponseExample>
+
+## Error responses
+
+| Status | Description                                       |
+| ------ | ------------------------------------------------- |
+| `401`  | Credentials are invalid (wrong username/password) |
+| `400`  | Request body failed validation                    |

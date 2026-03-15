@@ -1,0 +1,97 @@
+---
+title: List rules
+description: Retrieve all scheduling rules for the authenticated user, ordered by priority.
+---
+
+`GET /api/rules`
+
+<Note>
+  All endpoints require an `Authorization: Bearer <access_token>` header. Data is scoped to the authenticated user. Results are returned in ascending `priorityOrder`.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+## Response
+
+`200 OK` — Returns an array of rule objects ordered by `priorityOrder` ascending. Returns an empty array if none exist.
+
+<ResponseField name="id" type="string" required>
+  UUID of the rule.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  The rule type.
+</ResponseField>
+
+<ResponseField name="priorityOrder" type="number" required>
+  Priority order (ascending, lower = higher priority).
+</ResponseField>
+
+<ResponseField name="parameters" type="object | null">
+  Rule-specific parameters, or `null` if none.
+</ResponseField>
+
+<ResponseField name="userId" type="string" required>
+  UUID of the user who owns this rule.
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `401 Unauthorized` | Missing or invalid bearer token. |
+
+<RequestExample>
+
+```bash cURL
+curl --request GET \
+  --url http://localhost:3000/api/rules \
+  --header 'Authorization: Bearer $ACCESS_TOKEN'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+[
+  {
+    "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+    "type": "NO_GAPS",
+    "priorityOrder": 1,
+    "parameters": null,
+    "userId": "f6a7b8c9-d0e1-2345-fabc-456789012345"
+  },
+  {
+    "id": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+    "type": "LUNCH_BREAK_PROTECTED",
+    "priorityOrder": 2,
+    "parameters": {
+      "type": "timeRange",
+      "value": {
+        "start": "12:00",
+        "end": "14:00"
+      }
+    },
+    "userId": "f6a7b8c9-d0e1-2345-fabc-456789012345"
+  },
+  {
+    "id": "a7b8c9d0-e1f2-3456-abcd-567890123456",
+    "type": "AVOID_PROFESSOR",
+    "priorityOrder": 3,
+    "parameters": {
+      "type": "professorSelect",
+      "value": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+    },
+    "userId": "f6a7b8c9-d0e1-2345-fabc-456789012345"
+  }
+]
+```
+
+</ResponseExample>

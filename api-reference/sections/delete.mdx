@@ -1,0 +1,61 @@
+---
+title: Delete section
+description: Permanently delete a section by its ID.
+---
+
+`DELETE /api/sections/:id`
+
+<Note>
+  All endpoints require an `Authorization: Bearer <access_token>` header. Data is scoped to the authenticated user.
+</Note>
+
+<Warning>
+  This action is irreversible. The section and all associated day records will be permanently deleted.
+</Warning>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the section to delete.
+</ParamField>
+
+## Response
+
+`204 No Content` — The section was successfully deleted. No response body is returned.
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `401 Unauthorized` | Missing or invalid bearer token. |
+| `404 Not Found` | Section with the given `id` does not exist or does not belong to the authenticated user. |
+
+<RequestExample>
+
+```bash cURL
+curl --request DELETE \
+  --url http://localhost:3000/api/sections/c3d4e5f6-a7b8-9012-cdef-123456789012 \
+  --header 'Authorization: Bearer $ACCESS_TOKEN'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 404
+{
+  "statusCode": 404,
+  "message": "Section not found",
+  "error": "Not Found"
+}
+```
+
+</ResponseExample>

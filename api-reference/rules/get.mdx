@@ -1,0 +1,93 @@
+---
+title: Get rule
+description: Retrieve a single scheduling rule by its ID.
+---
+
+`GET /api/rules/:id`
+
+<Note>
+  All endpoints require an `Authorization: Bearer <access_token>` header. Data is scoped to the authenticated user.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the rule to retrieve.
+</ParamField>
+
+## Response
+
+`200 OK`
+
+<ResponseField name="id" type="string" required>
+  UUID of the rule.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  The rule type.
+</ResponseField>
+
+<ResponseField name="priorityOrder" type="number" required>
+  Priority order of the rule.
+</ResponseField>
+
+<ResponseField name="parameters" type="object | null">
+  Rule-specific parameters, or `null` if none.
+</ResponseField>
+
+<ResponseField name="userId" type="string" required>
+  UUID of the user who owns this rule.
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `401 Unauthorized` | Missing or invalid bearer token. |
+| `404 Not Found` | Rule with the given `id` does not exist or does not belong to the authenticated user. |
+
+<RequestExample>
+
+```bash cURL
+curl --request GET \
+  --url http://localhost:3000/api/rules/e5f6a7b8-c9d0-1234-efab-345678901234 \
+  --header 'Authorization: Bearer $ACCESS_TOKEN'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+  "type": "LUNCH_BREAK_PROTECTED",
+  "priorityOrder": 2,
+  "parameters": {
+    "type": "timeRange",
+    "value": {
+      "start": "12:00",
+      "end": "14:00"
+    }
+  },
+  "userId": "f6a7b8c9-d0e1-2345-fabc-456789012345"
+}
+```
+
+```json 404
+{
+  "statusCode": 404,
+  "message": "Rule not found",
+  "error": "Not Found"
+}
+```
+
+</ResponseExample>

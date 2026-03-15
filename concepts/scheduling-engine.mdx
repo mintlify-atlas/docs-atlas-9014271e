@@ -1,0 +1,231 @@
+---
+title: Scheduling engine
+description: Deep dive into the two-phase backtracking optimizer that generates ranked schedule combinations.
+---
+
+The scheduling engine is the core of Scheduly API. Given a set of subjects and a user's ordered preference rules, it produces the **top 3 valid schedule combinations** ranked by score.
+
+The engine lives in `src/scheduling/engine/scheduling-engine.ts` and coordinates two sub-systems: `SectionPruner` (phase 1) and `RuleScorer` (phase 2).
+
+```typescript
+export class SchedulingEngine {
+  private readonly scorer: RuleScorer;
+  private readonly pruner: SectionPruner;
+  private readonly TOP_RESULTS = 3;
+
+  generate(
+    sectionsBySubject: Map<string, SectionWithRelations[]>,
+    userRules: UserRule[],
+  ): ScoredCombination[] { ... }
+}
+```
+
+## Two-phase approach
+
+<Steps>
+  <Step title="Phase 1 — Pruning">
+    Before any combinations are explored, the pruner eliminates individual sections that violate **hard constraints**. This reduces the search space before backtracking begins.
+  </Step>
+  <Step title="Ordering by section count">
+    After pruning, subjects are sorted in ascending order by how many sections remain. Subjects with fewer options are scheduled first, which causes the backtracking tree to fail fast on over-constrained subjects.
+  </Step>
+  <Step title="Phase 2 — Backtracking">
+    The engine recursively picks one section per subject, skipping any section that conflicts in time with already-chosen sections. When a full combination is assembled, it is scored.
+  </Step>
+  <Step title="Scoring">
+    Each complete combination is passed to `RuleScorer`, which applies every user rule and accumulates a weighted score.
+  </Step>
+  <Step title="Top-3 selection">
+    The engine maintains a sorted list of the best 3 combinations seen so far. After backtracking completes, this list is returned sorted by score descending.
+  </Step>
+</Steps>
+
+## Phase 1 — Pruning
+
+`SectionPruner` applies hard constraints that make individual sections completely ineligible regardless of what other sections are chosen. Only two rule types act as pruning rules:
+
+| Rule | What gets removed |
+|---|---|
+| `AVOID_PROFESSOR` | All sections whose `professorId` matches the rule's professor UUID |
+| `LUNCH_BREAK_PROTECTED` | All sections whose time range overlaps with the protected lunch window |
+
+```typescript
+// src/scheduling/pruning/section-pruner.ts
+export class SectionPruner {
+  prune(
+    sections: SectionWithRelations[],
+    userRules: UserRule[],
+  ): SectionWithRelations[] {
+    let filtered = [...sections];
+
+    for (const rule of userRules) {
+      if (rule.type === RuleType.AVOID_PROFESSOR) {
+        filtered = this.applyAvoidProfessor(filtered, rule.parameters);
+      }
+      if (rule.type === RuleType.LUNCH_BREAK_PROTECTED) {
+        filtered = this.applyLunchBreakPruning(filtered, rule.parameters);
+      }
+    }
+
+    return filtered;
+  }
+}
+```
+
+If pruning removes all sections for any single subject, the engine throws immediately with an actionable error rather than running an empty backtracking search.
+
+<Warning>
+  If you receive a `400 Bad Request` with the message `No available sections for subject … after applying rules`, a pruning rule has eliminated every option for that subject. Adjust or remove the conflicting rule.
+</Warning>
+
+## Phase 2 — Backtracking
+
+The backtracking algorithm is a recursive depth-first search over the subjects array. At each level it picks one section for the current subject, verifies it doesn't conflict with already-chosen sections, then recurses to the next subject.
+
+```typescript
+private backtrack(
+  subjects: [string, SectionWithRelations[]][],
+  index: number,
+  current: SectionWithRelations[],
+  userRules: UserRule[],
+  topResults: ScoredCombination[],
+): void {
+  // Base case: all subjects assigned
+  if (index === subjects.length) {
+    const score = this.scorer.calculate(current, userRules);
+    this.updateTopResults(topResults, { sections: [...current], score });
+    return;
+  }
+
+  const [, sections] = subjects[index];
+
+  for (const section of sections) {
+    if (!this.hasConflict(section, current)) {
+      current.push(section);
+      this.backtrack(subjects, index + 1, current, userRules, topResults);
+      current.pop(); // undo choice
+    }
+  }
+}
+```
+
+### Conflict detection
+
+Two sections conflict if they share at least one day **and** their time ranges overlap:
+
+```typescript
+private hasConflict(
+  section: SectionWithRelations,
+  current: SectionWithRelations[],
+): boolean {
+  for (const chosen of current) {
+    const sharedDays = section.sectionDays.some((sd) =>
+      chosen.sectionDays.some((cd) => cd.day.name === sd.day.name),
+    );
+    if (!sharedDays) continue;
+
+    const sectionStart = section.startTime.getTime();
+    const sectionEnd   = section.endTime.getTime();
+    const chosenStart  = chosen.startTime.getTime();
+    const chosenEnd    = chosen.endTime.getTime();
+
+    if (sectionStart < chosenEnd && sectionEnd > chosenStart) return true;
+  }
+  return false;
+}
+```
+
+Sections that meet on different days never conflict, even if their clock times overlap.
+
+## Scoring
+
+`RuleScorer` receives a complete, conflict-free combination and calculates a total score by running every user rule's strategy.
+
+### Weight formula
+
+Each rule's contribution is weighted by its priority:
+
+```
+weight = 100 / priorityOrder
+```
+
+A rule at `priorityOrder: 1` contributes up to **100 points**, at `priorityOrder: 2` up to **50 points**, at `priorityOrder: 3` up to **33.3 points**, and so on. This makes lower-numbered priorities exponentially more influential.
+
+```typescript
+calculate(
+  combination: SectionWithRelations[],
+  userRules: UserRule[],
+): number {
+  let totalScore = 0;
+
+  for (const rule of userRules) {
+    const strategy = this.strategies.get(rule.type as RuleType);
+    if (!strategy) continue;
+
+    const weight = 100 / rule.priorityOrder;
+    const value  = strategy.evaluate(combination, rule.parameters);
+    totalScore  += weight * value;
+  }
+
+  return totalScore;
+}
+```
+
+Each strategy's `evaluate` method returns a normalized value between **0** and **1**, where `1` means the rule is fully satisfied and `0` means it is fully violated.
+
+## Strategy pattern
+
+Every rule type is implemented as a strategy class that satisfies the `RuleStrategy` interface:
+
+```typescript
+// src/scheduling/rules/strategies/rule-strategy.interface.ts
+export interface RuleStrategy {
+  evaluate(
+    combination: SectionWithRelations[],
+    parameter: RuleParameter,
+  ): number;
+}
+```
+
+`RuleScorer` maps each `RuleType` enum value to its strategy instance at construction time:
+
+```typescript
+this.strategies = new Map([
+  [RuleType.NO_GAPS,               new NoGapsStrategy()],
+  [RuleType.NO_EARLY_MORNINGS,     new NoEarlyMorningsStrategy()],
+  [RuleType.NO_LATE_EVENINGS,      new NoLateEveningsStrategy()],
+  [RuleType.PREFER_MORNING,        new PreferMorningStrategy()],
+  [RuleType.PREFER_AFTERNOON,      new PreferAfternoonStrategy()],
+  [RuleType.COMPACT_DAYS,          new CompactDaysStrategy()],
+  [RuleType.BALANCED_LOAD,         new BalancedLoadStrategy()],
+  [RuleType.MIN_FREE_DAY,          new MinFreeDayStrategy()],
+  [RuleType.MAX_CONSECUTIVE_HOURS, new MaxConsecutiveHoursStrategy()],
+  [RuleType.LUNCH_BREAK_PROTECTED, new LunchBreakProtectedStrategy()],
+  [RuleType.AVOID_PROFESSOR,       new AvoidProfessorStrategy()],
+]);
+```
+
+Adding a new rule type requires only: a new `RuleType` enum value, a new strategy class implementing `RuleStrategy`, and one entry in the `RuleScorer` map.
+
+## Top-3 result selection
+
+During backtracking, `updateTopResults` maintains an in-progress sorted list capped at 3 entries:
+
+```typescript
+private updateTopResults(
+  topResults: ScoredCombination[],
+  candidate: ScoredCombination,
+): void {
+  topResults.push(candidate);
+  topResults.sort((a, b) => b.score - a.score);
+  if (topResults.length > this.TOP_RESULTS) {
+    topResults.pop();
+  }
+}
+```
+
+Once backtracking finishes, the engine sorts the final list by score descending and returns it. The service layer wraps each result in a `ScheduleResultDto` with a `rank` field (1, 2, or 3).
+
+<Tip>
+  Rules at `priorityOrder: 1` dominate the ranking. If two schedules satisfy your top rule equally, the tie is broken by the combined contribution of all lower-priority rules.
+</Tip>

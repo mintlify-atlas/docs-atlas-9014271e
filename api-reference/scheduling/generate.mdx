@@ -1,0 +1,229 @@
+---
+title: Generate schedules
+description: Generate up to 3 optimized schedule combinations from your subjects using your configured rules.
+api: POST /api/scheduling/generate
+---
+
+Analyzes all sections for the requested subjects, applies your configured rules, and returns up to 3 non-conflicting schedule combinations ranked by score.
+
+This is the core endpoint of the Scheduly API. Before calling it, make sure you have:
+
+- Created subjects and added sections to each one.
+- Configured rules to express your scheduling preferences (preferred time ranges, days to avoid, preferred professors, etc.).
+
+<Note>
+All rules you have configured are automatically applied, ordered by their `priorityOrder` value (ascending). You do not pass rules in the request body.
+</Note>
+
+## How the engine works
+
+The engine runs in two phases:
+
+<Steps>
+  <Step title="Pruning">
+    Before exploring combinations, the engine filters out sections that hard-fail any of your rules. This eliminates obviously invalid sections early and keeps the search space small.
+
+    If all sections for a subject are eliminated during pruning, the request fails with a `400` error. Consider removing or relaxing a rule if this happens.
+  </Step>
+  <Step title="Backtracking and scoring">
+    The engine performs a backtracking search over the pruned sections. Subjects with fewer sections are scheduled first to minimize dead ends.
+
+    For each complete, conflict-free combination found, a score is computed by evaluating every rule against the combination. Rules with a lower `priorityOrder` carry more weight.
+
+    The engine keeps only the top 3 highest-scoring combinations at any point, so memory usage stays constant regardless of subject count.
+  </Step>
+</Steps>
+
+Results are returned sorted by score descending — `rank: 1` is always the best match for your rules.
+
+<Tip>
+For the best results, configure your rules before calling this endpoint. A schedule generated with no rules will still be valid (conflict-free), but it won't reflect your preferences.
+</Tip>
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+## Request body
+
+<ParamField body="subjectIds" type="string[]" required>
+  Array of subject UUIDs to include in the generated schedules. Must contain at least one ID. Every UUID must belong to the authenticated user and have at least one section.
+</ParamField>
+
+## Response
+
+Returns an array of up to 3 `ScheduleResult` objects, sorted by score descending.
+
+<ResponseField name="rank" type="number" required>
+  Position in the ranking. `1` is the highest-scoring result.
+</ResponseField>
+
+<ResponseField name="score" type="number" required>
+  Composite score computed by the rule engine. Higher is better. Rounded to two decimal places.
+</ResponseField>
+
+<ResponseField name="sections" type="object[]" required>
+  The sections that form this schedule. One entry per subject.
+
+  <Expandable title="section properties">
+    <ResponseField name="sectionId" type="string" required>
+      UUID of the section.
+    </ResponseField>
+
+    <ResponseField name="subject" type="string" required>
+      Name of the subject this section belongs to.
+    </ResponseField>
+
+    <ResponseField name="professor" type="string | null" required>
+      Full name of the assigned professor, or `null` if no professor is assigned.
+    </ResponseField>
+
+    <ResponseField name="startTime" type="string" required>
+      Section start time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="endTime" type="string" required>
+      Section end time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="days" type="string[]" required>
+      Days of the week this section meets. Example: `["Monday", "Wednesday"]`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+|--------|-------------|
+| `400 Bad Request` | No sections found for the given subject IDs, a subject has no sections after pruning, or no valid conflict-free combination exists. The `message` field describes the exact cause. |
+| `401 Unauthorized` | Missing or invalid Bearer token. |
+
+<Warning>
+If you receive `"No available sections for subject X after applying rules"`, one or more of your rules is eliminating every section for that subject. Review your rules or add more sections.
+</Warning>
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url http://localhost:3000/api/scheduling/generate \
+  --header 'Authorization: Bearer '$ACCESS_TOKEN \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "subjectIds": [
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+    ]
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+[
+  {
+    "rank": 1,
+    "score": 87.50,
+    "sections": [
+      {
+        "sectionId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "subject": "Calculus II",
+        "professor": "Dr. Maria Lopez",
+        "startTime": "08:00",
+        "endTime": "09:30",
+        "days": ["Monday", "Wednesday", "Friday"]
+      },
+      {
+        "sectionId": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "subject": "Introduction to Programming",
+        "professor": "Prof. James Carter",
+        "startTime": "10:00",
+        "endTime": "11:30",
+        "days": ["Tuesday", "Thursday"]
+      }
+    ]
+  },
+  {
+    "rank": 2,
+    "score": 74.00,
+    "sections": [
+      {
+        "sectionId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "subject": "Calculus II",
+        "professor": "Dr. Maria Lopez",
+        "startTime": "08:00",
+        "endTime": "09:30",
+        "days": ["Monday", "Wednesday", "Friday"]
+      },
+      {
+        "sectionId": "e5f6a7b8-c9d0-1234-efab-345678901234",
+        "subject": "Introduction to Programming",
+        "professor": null,
+        "startTime": "14:00",
+        "endTime": "15:30",
+        "days": ["Monday", "Wednesday"]
+      }
+    ]
+  },
+  {
+    "rank": 3,
+    "score": 61.25,
+    "sections": [
+      {
+        "sectionId": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "subject": "Calculus II",
+        "professor": "Dr. Anna Reyes",
+        "startTime": "16:00",
+        "endTime": "17:30",
+        "days": ["Tuesday", "Thursday"]
+      },
+      {
+        "sectionId": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "subject": "Introduction to Programming",
+        "professor": "Prof. James Carter",
+        "startTime": "10:00",
+        "endTime": "11:30",
+        "days": ["Tuesday", "Thursday"]
+      }
+    ]
+  }
+]
+```
+
+```json 400 — no sections found
+{
+  "statusCode": 400,
+  "message": "No sections found for the given subjects",
+  "error": "Bad Request"
+}
+```
+
+```json 400 — pruning eliminated all options
+{
+  "statusCode": 400,
+  "message": "No available sections for subject a1b2c3d4-e5f6-7890-abcd-ef1234567890 after applying rules. Consider removing or adjusting some rules.",
+  "error": "Bad Request"
+}
+```
+
+```json 400 — no valid combinations
+{
+  "statusCode": 400,
+  "message": "No valid schedule combinations found. There may be too many conflicts between sections.",
+  "error": "Bad Request"
+}
+```
+
+```json 401
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+</ResponseExample>

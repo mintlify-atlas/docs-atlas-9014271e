@@ -1,0 +1,139 @@
+---
+title: Save a schedule
+description: Save a generated schedule result by name for later reference.
+api: POST /api/saved-schedules
+---
+
+Saves a named schedule by storing references to a specific set of sections. You typically call this after [generating schedules](/api-reference/scheduling/generate) and selecting one of the returned results.
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+## Request body
+
+<ParamField body="name" type="string" required>
+  A display name for this saved schedule. Maximum 50 characters.
+</ParamField>
+
+<ParamField body="sectionIds" type="string[]" required>
+  Array of section UUIDs to associate with this schedule. Must contain at least one ID. Use the `sectionId` values returned by the generate endpoint.
+</ParamField>
+
+## Response
+
+Returns the created `SavedSchedule` object.
+
+<ResponseField name="id" type="string" required>
+  UUID of the saved schedule.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Display name of the saved schedule.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of when the schedule was saved.
+</ResponseField>
+
+<ResponseField name="sections" type="object[]" required>
+  The sections associated with this saved schedule.
+
+  <Expandable title="section properties">
+    <ResponseField name="sectionId" type="string" required>
+      UUID of the section.
+    </ResponseField>
+
+    <ResponseField name="subject" type="string" required>
+      Name of the subject.
+    </ResponseField>
+
+    <ResponseField name="professor" type="string | null" required>
+      Full name of the professor, or `null` if unassigned.
+    </ResponseField>
+
+    <ResponseField name="startTime" type="string" required>
+      Start time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="endTime" type="string" required>
+      End time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="days" type="string[]" required>
+      Days of the week this section meets.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+|--------|-------------|
+| `400 Bad Request` | Validation failed (e.g. `name` exceeds 50 characters, `sectionIds` is empty or contains invalid UUIDs). |
+| `401 Unauthorized` | Missing or invalid Bearer token. |
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url http://localhost:3000/api/saved-schedules \
+  --header 'Authorization: Bearer '$ACCESS_TOKEN \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "My ideal schedule",
+    "sectionIds": [
+      "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "d4e5f6a7-b8c9-0123-defa-234567890123"
+    ]
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201
+{
+  "id": "a9b8c7d6-e5f4-3210-9876-fedcba543210",
+  "name": "My ideal schedule",
+  "createdAt": "2026-03-15T10:30:00.000Z",
+  "sections": [
+    {
+      "sectionId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "subject": "Calculus II",
+      "professor": "Dr. Maria Lopez",
+      "startTime": "08:00",
+      "endTime": "09:30",
+      "days": ["Monday", "Wednesday", "Friday"]
+    },
+    {
+      "sectionId": "d4e5f6a7-b8c9-0123-defa-234567890123",
+      "subject": "Introduction to Programming",
+      "professor": "Prof. James Carter",
+      "startTime": "10:00",
+      "endTime": "11:30",
+      "days": ["Tuesday", "Thursday"]
+    }
+  ]
+}
+```
+
+```json 400
+{
+  "statusCode": 400,
+  "message": ["name must be shorter than or equal to 50 characters"],
+  "error": "Bad Request"
+}
+```
+
+```json 401
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+</ResponseExample>

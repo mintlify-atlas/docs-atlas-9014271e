@@ -1,0 +1,164 @@
+---
+title: Environment variables
+description: Complete reference for all environment variables used by the Scheduly API.
+---
+
+## Overview
+
+Scheduly API is configured entirely through environment variables. The application reads these variables at startup — no variable is hard-coded in source.
+
+## Creating a .env file
+
+Create a `.env` file in the project root before starting the server:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/scheduly_db?schema=public"
+JWT_SECRET="your_jwt_secret_key"
+NODE_ENV="development"
+PORT=3000
+CORS_ORIGIN="http://localhost:5173"
+```
+
+<Note>
+  The `.env` file should never be committed to version control. Add it to `.gitignore` to keep secrets out of your repository.
+</Note>
+
+## Variable reference
+
+### DATABASE_URL
+
+| Field | Value |
+|---|---|
+| Required | Yes |
+| Type | String (PostgreSQL connection URL) |
+
+The full connection string for your PostgreSQL database. Prisma uses this to connect to the database and the seed script loads it via `dotenv/config`.
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/scheduly_db?schema=public"
+```
+
+The URL format is:
+
+```
+postgresql://<user>:<password>@<host>:<port>/<database>?schema=<schema>
+```
+
+<Warning>
+  The `?schema=public` query parameter is required. Prisma uses it to scope migrations and queries to the correct PostgreSQL schema.
+</Warning>
+
+### JWT_SECRET
+
+| Field | Value |
+|---|---|
+| Required | Yes |
+| Type | String |
+
+The secret key used to sign and verify JWT access tokens. A longer, randomly generated value is more secure.
+
+```env
+JWT_SECRET="your_secure_random_secret"
+```
+
+<Warning>
+  Never use a short or predictable value in production. Generate a secret with a tool like `openssl rand -base64 64` and store it securely.
+</Warning>
+
+### NODE_ENV
+
+| Field | Value |
+|---|---|
+| Required | Yes |
+| Accepted values | `development`, `production` |
+
+Controls the runtime environment. NestJS and many libraries behave differently depending on this value — for example, error stack traces are suppressed in production.
+
+```env
+NODE_ENV="development"
+```
+
+### PORT
+
+| Field | Value |
+|---|---|
+| Required | No |
+| Default | `3000` |
+| Type | Number |
+
+The TCP port the HTTP server listens on. If not set, the application falls back to port `3000`.
+
+```env
+PORT=3000
+```
+
+This is reflected directly in `src/main.ts`:
+
+```typescript
+await app.listen(process.env.PORT ?? 3000);
+```
+
+### CORS_ORIGIN
+
+| Field | Value |
+|---|---|
+| Required | No |
+| Type | String (URL) |
+
+The allowed origin for cross-origin requests. Passed directly to `app.enableCors()` along with `credentials: true` to support cookie-based refresh tokens.
+
+```env
+CORS_ORIGIN="http://localhost:5173"
+```
+
+If this variable is not set, the `origin` option will be `undefined`, which blocks all cross-origin requests.
+
+<Note>
+  In production, set this to the exact origin of your front-end application. Wildcard origins (`*`) are not compatible with credentialed requests.
+</Note>
+
+## Summary table
+
+| Variable | Required | Default | Description | Example |
+|---|---|---|---|---|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/scheduly_db?schema=public` |
+| `JWT_SECRET` | Yes | — | Secret key for signing JWT tokens | `your_secure_random_secret` |
+| `NODE_ENV` | Yes | — | Runtime environment | `development` / `production` |
+| `PORT` | No | `3000` | HTTP port | `3000` |
+| `CORS_ORIGIN` | No | — | Allowed CORS origin | `http://localhost:5173` |
+
+## Development vs. production
+
+<CodeGroup>
+
+```env Development (.env)
+DATABASE_URL="postgresql://postgres:password@localhost:5432/scheduly_db?schema=public"
+JWT_SECRET="dev_secret_not_for_production"
+NODE_ENV="development"
+PORT=3000
+CORS_ORIGIN="http://localhost:5173"
+```
+
+```env Production (.env)
+DATABASE_URL="postgresql://app_user:strong_password@db.example.com:5432/scheduly_db?schema=public"
+JWT_SECRET="<output of: openssl rand -base64 64>"
+NODE_ENV="production"
+PORT=8080
+CORS_ORIGIN="https://app.example.com"
+```
+
+</CodeGroup>
+
+Key differences for production:
+
+- Use a dedicated database user with only the permissions your application needs.
+- `JWT_SECRET` must be a long, randomly generated value stored in a secrets manager, not in a `.env` file on disk.
+- Set `NODE_ENV="production"` so NestJS applies production-safe defaults.
+- Set `CORS_ORIGIN` to your front-end's exact domain — no trailing slash.
+
+## Security best practices
+
+- **Rotate `JWT_SECRET` periodically.** Existing tokens will be invalidated when the secret changes, forcing users to log in again.
+- **Never commit `.env` to Git.** Add `.env` to `.gitignore` and use `.env.example` to document the required variables without real values.
+- **Use environment-specific secrets management** in production: AWS Secrets Manager, HashiCorp Vault, or your hosting platform's secret injection.
+- **Restrict database access.** The `app_user` account should only have `SELECT`, `INSERT`, `UPDATE`, and `DELETE` permissions on the application schema — not `CREATE` or `DROP`.

@@ -1,0 +1,43 @@
+---
+title: Logout
+description: End the current session by clearing the refresh token cookie.
+---
+
+`POST /api/auth/logout`
+
+<Note>No authentication is required for this endpoint.</Note>
+
+## Request
+
+No request body is needed. The server clears the `refreshToken` cookie regardless of whether one is present.
+
+## Response
+
+<ResponseField name="message" type="string">
+  Confirmation message. Always `"Logged out successfully"`.
+</ResponseField>
+
+## Example
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url http://localhost:3000/api/auth/logout
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "message": "Logged out successfully"
+}
+```
+
+</ResponseExample>
+
+## Error responses
+
+This endpoint always returns `200`. It does not fail if no cookie was present.

@@ -1,0 +1,75 @@
+---
+title: Create subject
+description: Create a new subject for the authenticated user.
+---
+
+`POST /api/subjects`
+
+<Note>
+  This endpoint requires authentication. Include a valid Bearer token in the `Authorization` header.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Body
+
+<ParamField body="name" type="string" required>
+  Name of the subject. Maximum 100 characters.
+</ParamField>
+
+## Response
+
+**200 OK**
+
+<ResponseField name="id" type="string" required>
+  Unique identifier of the subject (UUID).
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Name of the subject.
+</ResponseField>
+
+<ResponseField name="userId" type="string" required>
+  ID of the authenticated user who owns this subject.
+</ResponseField>
+
+## Examples
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url http://localhost:3000/api/subjects \
+  --header 'Authorization: Bearer $ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Matemáticas"
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Matemáticas",
+  "userId": "u1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+</ResponseExample>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `400 Bad Request` | The request body is missing required fields or contains invalid values. |
+| `401 Unauthorized` | No token provided or the token is invalid. |

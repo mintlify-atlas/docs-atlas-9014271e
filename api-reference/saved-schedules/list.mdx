@@ -1,0 +1,129 @@
+---
+title: List saved schedules
+description: Retrieve all saved schedules belonging to the authenticated user.
+api: GET /api/saved-schedules
+---
+
+Returns all saved schedules for the authenticated user, ordered by creation date descending (most recent first).
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+## Response
+
+Returns an array of `SavedSchedule` objects. Returns an empty array if no schedules have been saved.
+
+<ResponseField name="id" type="string" required>
+  UUID of the saved schedule.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Display name of the saved schedule.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of when the schedule was saved.
+</ResponseField>
+
+<ResponseField name="sections" type="object[]" required>
+  The sections associated with this saved schedule.
+
+  <Expandable title="section properties">
+    <ResponseField name="sectionId" type="string" required>
+      UUID of the section.
+    </ResponseField>
+
+    <ResponseField name="subject" type="string" required>
+      Name of the subject.
+    </ResponseField>
+
+    <ResponseField name="professor" type="string | null" required>
+      Full name of the professor, or `null` if unassigned.
+    </ResponseField>
+
+    <ResponseField name="startTime" type="string" required>
+      Start time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="endTime" type="string" required>
+      End time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="days" type="string[]" required>
+      Days of the week this section meets.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+|--------|-------------|
+| `401 Unauthorized` | Missing or invalid Bearer token. |
+
+<RequestExample>
+
+```bash cURL
+curl --request GET \
+  --url http://localhost:3000/api/saved-schedules \
+  --header 'Authorization: Bearer '$ACCESS_TOKEN
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+[
+  {
+    "id": "a9b8c7d6-e5f4-3210-9876-fedcba543210",
+    "name": "My ideal schedule",
+    "createdAt": "2026-03-15T10:30:00.000Z",
+    "sections": [
+      {
+        "sectionId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+        "subject": "Calculus II",
+        "professor": "Dr. Maria Lopez",
+        "startTime": "08:00",
+        "endTime": "09:30",
+        "days": ["Monday", "Wednesday", "Friday"]
+      },
+      {
+        "sectionId": "d4e5f6a7-b8c9-0123-defa-234567890123",
+        "subject": "Introduction to Programming",
+        "professor": "Prof. James Carter",
+        "startTime": "10:00",
+        "endTime": "11:30",
+        "days": ["Tuesday", "Thursday"]
+      }
+    ]
+  },
+  {
+    "id": "b7c6d5e4-f3a2-1098-7654-edcba9876543",
+    "name": "Backup schedule",
+    "createdAt": "2026-03-14T08:15:00.000Z",
+    "sections": [
+      {
+        "sectionId": "f6a7b8c9-d0e1-2345-fabc-456789012345",
+        "subject": "Calculus II",
+        "professor": "Dr. Anna Reyes",
+        "startTime": "16:00",
+        "endTime": "17:30",
+        "days": ["Tuesday", "Thursday"]
+      }
+    ]
+  }
+]
+```
+
+```json 401
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+</ResponseExample>

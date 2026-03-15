@@ -1,0 +1,305 @@
+---
+title: Database
+description: PostgreSQL setup, Prisma configuration, migrations, seeding, and the full data model for Scheduly API.
+---
+
+## Requirements
+
+Scheduly API uses **PostgreSQL 14 or higher** as its database. Make sure you have a running PostgreSQL instance before proceeding.
+
+<Tip>
+  For local development you can install PostgreSQL directly or run it in Docker:
+
+  ```bash
+  docker run --name scheduly-db -e POSTGRES_PASSWORD=password -e POSTGRES_DB=scheduly_db -p 5432:5432 -d postgres:16
+  ```
+</Tip>
+
+## Prisma configuration
+
+Prisma is configured via `prisma.config.ts` at the project root:
+
+```typescript
+import 'dotenv/config';
+import { defineConfig, env } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+    seed: 'tsx prisma/seed.ts',
+  },
+  datasource: {
+    url: env('DATABASE_URL'),
+  },
+});
+```
+
+The schema file is located at `prisma/schema.prisma`. Migration history is stored in `prisma/migrations/`. The `DATABASE_URL` environment variable must be set before running any Prisma command.
+
+## Creating the database
+
+Create the target database in PostgreSQL before running migrations. If using `psql`:
+
+```bash
+psql -U postgres -c "CREATE DATABASE scheduly_db;"
+```
+
+Then confirm your `DATABASE_URL` in `.env` points to that database:
+
+```env
+DATABASE_URL="postgresql://postgres:password@localhost:5432/scheduly_db?schema=public"
+```
+
+## Running migrations
+
+Apply all pending migrations to bring the database schema up to date:
+
+```bash
+npx prisma migrate dev
+```
+
+In development this command:
+1. Compares the current schema against the database.
+2. Generates a new SQL migration file if there are schema changes.
+3. Applies all pending migrations.
+4. Regenerates the Prisma Client.
+
+For production deployments, use the deploy command instead:
+
+```bash
+npx prisma migrate deploy
+```
+
+<Warning>
+  `migrate deploy` does not generate new migrations — it only applies existing ones. Always run `migrate dev` during development and commit the resulting migration files to version control.
+</Warning>
+
+## Seeding initial data
+
+Run the seed script to populate the required reference data:
+
+```bash
+npx prisma db seed
+```
+
+The seed script (`prisma/seed.ts`) inserts the seven days of the week into the `days` table:
+
+```typescript
+await prisma.day.createMany({
+  data: [
+    { id: 1, name: 'monday' },
+    { id: 2, name: 'tuesday' },
+    { id: 3, name: 'wednesday' },
+    { id: 4, name: 'thursday' },
+    { id: 5, name: 'friday' },
+    { id: 6, name: 'saturday' },
+    { id: 7, name: 'sunday' },
+  ],
+  skipDuplicates: true,
+});
+```
+
+The `skipDuplicates: true` option makes the command safe to run multiple times — it will not throw an error if the rows already exist.
+
+<Note>
+  The `days` table is required by the scheduling engine. Sections reference day IDs 1–7 when assigning meeting days. Without this seed data, creating sections will fail.
+</Note>
+
+## Resetting the database in development
+
+To wipe all data, drop and recreate the schema, reapply all migrations, and re-run the seed script:
+
+```bash
+npx prisma migrate reset
+```
+
+<Warning>
+  `migrate reset` is destructive. It deletes all data in the database. Only use it in development environments.
+</Warning>
+
+## Prisma Studio
+
+Prisma Studio is a browser-based GUI for inspecting and editing database records:
+
+```bash
+npx prisma studio
+```
+
+This opens `http://localhost:5555` with a visual interface for all tables defined in the schema.
+
+## Data model
+
+The schema defines eight models across nine database tables.
+
+### User
+
+Represents an authenticated user of the API. All resources (professors, subjects, rules, saved schedules) are scoped to a user.
+
+```prisma
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique @db.VarChar(50)
+  password  String
+  fullName  String   @map("full_name") @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  professors     Professor[]
+  subjects       Subject[]
+  rules          Rule[]
+  savedSchedules SavedSchedule[]
+
+  @@map("user")
+}
+```
+
+### Day
+
+Reference table for days of the week. Populated by the seed script with IDs 1–7.
+
+```prisma
+model Day {
+  id   Int    @id
+  name String @db.VarChar(10)
+
+  sectionDays SectionDay[]
+
+  @@map("days")
+}
+```
+
+### Professor
+
+A professor optionally associated with a user. Sections reference professors.
+
+```prisma
+model Professor {
+  id       String  @id @default(uuid())
+  fullName String  @map("full_name") @db.VarChar(100)
+  userId   String? @map("user_id")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sections Section[]
+
+  @@map("professors")
+}
+```
+
+### Subject
+
+An academic subject owned by a user. Each subject can have multiple sections.
+
+```prisma
+model Subject {
+  id     String @id @default(uuid())
+  name   String @db.VarChar(100)
+  userId String @map("user_id")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sections Section[]
+
+  @@map("subjects")
+}
+```
+
+### Rule
+
+An optimization rule with a type, priority order, and optional JSON parameters. Used by the scheduling engine to score schedule combinations.
+
+```prisma
+model Rule {
+  id            String @id @default(uuid())
+  type          String @db.VarChar(50)
+  priorityOrder Int    @map("priority_order")
+  parameters    Json?
+  userId        String @map("user_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("rules")
+}
+```
+
+### Section
+
+A specific time slot for a subject, with a start time, end time, and an optional professor.
+
+```prisma
+model Section {
+  id          String   @id @default(uuid())
+  startTime   DateTime @map("start_time") @db.Timetz()
+  endTime     DateTime @map("end_time") @db.Timetz()
+  subjectId   String   @map("subject_id")
+  professorId String?  @map("professor_id")
+
+  subject           Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  professor         Professor?        @relation(fields: [professorId], references: [id], onDelete: SetNull)
+  sectionDays       SectionDay[]
+  schedulesSections ScheduleSection[]
+
+  @@map("sections")
+}
+```
+
+### SectionDay
+
+Join table linking a section to one or more days of the week.
+
+```prisma
+model SectionDay {
+  id        String @id @default(uuid())
+  sectionId String @map("section_id")
+  dayId     Int    @map("day_id")
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  day     Day     @relation(fields: [dayId], references: [id])
+
+  @@map("sections_days")
+}
+```
+
+### SavedSchedule
+
+A named schedule saved by a user, composed of one or more sections.
+
+```prisma
+model SavedSchedule {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  userId    String   @map("user_id")
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedulesSections ScheduleSection[]
+
+  @@map("saved_schedules")
+}
+```
+
+### ScheduleSection
+
+Join table linking a saved schedule to its sections. Uses a composite primary key.
+
+```prisma
+model ScheduleSection {
+  scheduleId String @map("schedule_id")
+  sectionId  String @map("section_id")
+
+  savedSchedule SavedSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  section       Section       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@id([scheduleId, sectionId])
+  @@map("schedules_sections")
+}
+```
+
+## Migration history
+
+The project has two migrations under `prisma/migrations/`:
+
+| Migration | Timestamp | Description |
+|---|---|---|
+| `20260219134452_init` | 2026-02-19 | Creates all initial tables and foreign key constraints |
+| `20260226190012_add_parameters_to_rule` | 2026-02-26 | Adds the `parameters` JSONB column to the `rules` table |
+
+To inspect the raw SQL for any migration, open the corresponding `migration.sql` file inside `prisma/migrations/`.

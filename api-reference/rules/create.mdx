@@ -1,0 +1,238 @@
+---
+title: Create rule
+description: Create a new scheduling rule for the authenticated user.
+---
+
+`POST /api/rules`
+
+<Note>
+  All endpoints require an `Authorization: Bearer <access_token>` header. The `userId` is automatically set from the authenticated user — do not include it in the request body.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Body
+
+<ParamField body="type" type="string" required placeholder="NO_GAPS">
+  The rule type. Must be one of the supported rule types listed below. Maximum 50 characters.
+
+  | Type | Parameters |
+  | ---- | ---------- |
+  | `NO_GAPS` | None |
+  | `NO_EARLY_MORNINGS` | None |
+  | `NO_LATE_EVENINGS` | None |
+  | `PREFER_MORNING` | None |
+  | `PREFER_AFTERNOON` | None |
+  | `COMPACT_DAYS` | None |
+  | `BALANCED_LOAD` | None |
+  | `MIN_FREE_DAY` | `daySelect` (optional) |
+  | `MAX_CONSECUTIVE_HOURS` | `number` (required, 1–8) |
+  | `LUNCH_BREAK_PROTECTED` | `timeRange` (required) |
+  | `AVOID_PROFESSOR` | `professorSelect` (required) |
+</ParamField>
+
+<ParamField body="priorityOrder" type="number" required placeholder="1">
+  Priority of this rule relative to others. Lower numbers are evaluated first. Minimum value: `1`.
+</ParamField>
+
+<ParamField body="parameters" type="object">
+  Optional rule-specific parameters. The expected shape depends on the `type`. See examples below. Set to `null` or omit for rules that do not require parameters.
+</ParamField>
+
+## Parameter formats by rule type
+
+<AccordionGroup>
+  <Accordion title="MIN_FREE_DAY — daySelect">
+    ```json
+    {
+      "type": "daySelect",
+      "value": 5
+    }
+    ```
+    `value` is a day number 1–7 (1 = Monday, 7 = Sunday). Parameter is optional for this rule type.
+  </Accordion>
+
+  <Accordion title="MAX_CONSECUTIVE_HOURS — number">
+    ```json
+    {
+      "type": "number",
+      "value": 3
+    }
+    ```
+    `value` is the maximum number of consecutive class hours. Accepted range: 1–8.
+  </Accordion>
+
+  <Accordion title="LUNCH_BREAK_PROTECTED — timeRange">
+    ```json
+    {
+      "type": "timeRange",
+      "value": {
+        "start": "12:00",
+        "end": "14:00"
+      }
+    }
+    ```
+    `value.start` and `value.end` are times in `HH:MM` format.
+  </Accordion>
+
+  <Accordion title="AVOID_PROFESSOR — professorSelect">
+    ```json
+    {
+      "type": "professorSelect",
+      "value": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+    }
+    ```
+    `value` is the UUID of the professor to exclude from scheduling.
+  </Accordion>
+</AccordionGroup>
+
+## Response
+
+`201 Created`
+
+<ResponseField name="id" type="string" required>
+  UUID of the created rule.
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  The rule type.
+</ResponseField>
+
+<ResponseField name="priorityOrder" type="number" required>
+  Priority order of the rule.
+</ResponseField>
+
+<ResponseField name="parameters" type="object | null">
+  Rule-specific parameters, or `null` if none.
+</ResponseField>
+
+<ResponseField name="userId" type="string" required>
+  UUID of the user who owns this rule.
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `400 Bad Request` | Invalid request body (missing `type` or `priorityOrder`, invalid values). |
+| `401 Unauthorized` | Missing or invalid bearer token. |
+
+<RequestExample>
+
+<Tabs>
+  <Tab title="NO_GAPS">
+    ```bash cURL
+    curl --request POST \
+      --url http://localhost:3000/api/rules \
+      --header 'Authorization: Bearer $ACCESS_TOKEN' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "type": "NO_GAPS",
+        "priorityOrder": 1
+      }'
+    ```
+  </Tab>
+  <Tab title="MIN_FREE_DAY">
+    ```bash cURL
+    curl --request POST \
+      --url http://localhost:3000/api/rules \
+      --header 'Authorization: Bearer $ACCESS_TOKEN' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "type": "MIN_FREE_DAY",
+        "priorityOrder": 2,
+        "parameters": {
+          "type": "daySelect",
+          "value": 5
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="MAX_CONSECUTIVE_HOURS">
+    ```bash cURL
+    curl --request POST \
+      --url http://localhost:3000/api/rules \
+      --header 'Authorization: Bearer $ACCESS_TOKEN' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "type": "MAX_CONSECUTIVE_HOURS",
+        "priorityOrder": 3,
+        "parameters": {
+          "type": "number",
+          "value": 3
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="LUNCH_BREAK_PROTECTED">
+    ```bash cURL
+    curl --request POST \
+      --url http://localhost:3000/api/rules \
+      --header 'Authorization: Bearer $ACCESS_TOKEN' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "type": "LUNCH_BREAK_PROTECTED",
+        "priorityOrder": 4,
+        "parameters": {
+          "type": "timeRange",
+          "value": {
+            "start": "12:00",
+            "end": "14:00"
+          }
+        }
+      }'
+    ```
+  </Tab>
+  <Tab title="AVOID_PROFESSOR">
+    ```bash cURL
+    curl --request POST \
+      --url http://localhost:3000/api/rules \
+      --header 'Authorization: Bearer $ACCESS_TOKEN' \
+      --header 'Content-Type: application/json' \
+      --data '{
+        "type": "AVOID_PROFESSOR",
+        "priorityOrder": 5,
+        "parameters": {
+          "type": "professorSelect",
+          "value": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+        }
+      }'
+    ```
+  </Tab>
+</Tabs>
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201
+{
+  "id": "e5f6a7b8-c9d0-1234-efab-345678901234",
+  "type": "LUNCH_BREAK_PROTECTED",
+  "priorityOrder": 4,
+  "parameters": {
+    "type": "timeRange",
+    "value": {
+      "start": "12:00",
+      "end": "14:00"
+    }
+  },
+  "userId": "f6a7b8c9-d0e1-2345-fabc-456789012345"
+}
+```
+
+```json 400
+{
+  "statusCode": 400,
+  "message": ["type should not be empty", "priorityOrder must be an integer number"],
+  "error": "Bad Request"
+}
+```
+
+</ResponseExample>

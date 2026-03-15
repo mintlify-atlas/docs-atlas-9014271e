@@ -1,0 +1,59 @@
+---
+title: Delete professor
+description: Delete a professor belonging to the authenticated user.
+---
+
+`DELETE /api/professors/:id`
+
+<Warning>
+  This action is irreversible. Deleting a professor will set the `professorId` field to `null` on any sections that referenced them.
+</Warning>
+
+<Note>
+  This endpoint requires authentication. Include a valid Bearer token in the `Authorization` header.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the professor to delete.
+</ParamField>
+
+## Response
+
+**204 No Content** — The professor was successfully deleted. No response body is returned.
+
+## Examples
+
+<RequestExample>
+
+```bash cURL
+curl --request DELETE \
+  --url http://localhost:3000/api/professors/c3d4e5f6-a7b8-9012-cdef-123456789012 \
+  --header 'Authorization: Bearer $ACCESS_TOKEN'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 204
+
+```
+
+</ResponseExample>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `401 Unauthorized` | No token provided or the token is invalid. |
+| `404 Not Found` | No professor with the given ID exists for the authenticated user. |

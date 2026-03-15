@@ -1,0 +1,65 @@
+---
+title: Refresh
+description: Rotate the refresh token and obtain a new access token.
+---
+
+`POST /api/auth/refresh`
+
+<Note>
+  This endpoint does not require a Bearer token. Authentication is performed via the `refreshToken` HttpOnly cookie set during [login](/api-reference/auth/login).
+</Note>
+
+## Request
+
+No request body is needed. The `refreshToken` cookie must be present in the request.
+
+<Warning>
+  If the `refreshToken` cookie is missing, expired, or invalid, the request will be rejected with a `401` error.
+</Warning>
+
+## Response
+
+Issues a new access token and rotates the refresh token. A replacement `refreshToken` cookie is set on the response with the same attributes as the original.
+
+<ResponseField name="accessToken" type="string">
+  New JWT access token valid for 15 minutes.
+</ResponseField>
+
+### Rotated refresh token cookie
+
+The old `refreshToken` cookie is replaced with a new one:
+
+| Attribute  | Value                          |
+| ---------- | ------------------------------ |
+| `HttpOnly` | `true` — not accessible via JS |
+| `SameSite` | `Strict`                       |
+| `Secure`   | `true` in production           |
+| `Max-Age`  | 7 days                         |
+
+## Example
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url http://localhost:3000/api/auth/refresh \
+  --cookie 'refreshToken=<your-refresh-token>'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+</ResponseExample>
+
+## Error responses
+
+| Status | Description                                     |
+| ------ | ----------------------------------------------- |
+| `401`  | Refresh token is missing, invalid, or expired   |

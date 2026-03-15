@@ -1,0 +1,82 @@
+---
+title: Update subject
+description: Update an existing subject belonging to the authenticated user.
+---
+
+`PUT /api/subjects/:id`
+
+<Note>
+  This endpoint requires authentication. Include a valid Bearer token in the `Authorization` header.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the subject to update.
+</ParamField>
+
+### Body
+
+<ParamField body="name" type="string" required>
+  New name for the subject. Maximum 100 characters.
+</ParamField>
+
+## Response
+
+**200 OK** — Returns the updated subject object.
+
+<ResponseField name="id" type="string" required>
+  Unique identifier of the subject (UUID).
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Updated name of the subject.
+</ResponseField>
+
+<ResponseField name="userId" type="string" required>
+  ID of the authenticated user who owns this subject.
+</ResponseField>
+
+## Examples
+
+<RequestExample>
+
+```bash cURL
+curl --request PUT \
+  --url http://localhost:3000/api/subjects/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  --header 'Authorization: Bearer $ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Álgebra Lineal"
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Álgebra Lineal",
+  "userId": "u1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+```
+
+</ResponseExample>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `400 Bad Request` | The request body is missing required fields or contains invalid values. |
+| `401 Unauthorized` | No token provided or the token is invalid. |
+| `404 Not Found` | No subject with the given ID exists for the authenticated user. |

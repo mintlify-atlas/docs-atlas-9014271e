@@ -1,0 +1,150 @@
+---
+title: Update a saved schedule
+description: Rename an existing saved schedule.
+api: PUT /api/saved-schedules/{id}
+---
+
+Updates the `name` of an existing saved schedule. The sections associated with the schedule are not modified by this endpoint.
+
+<Note>
+Only the schedule name can be changed. To change which sections are associated, delete the schedule and create a new one.
+</Note>
+
+## Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the saved schedule to update.
+</ParamField>
+
+## Request body
+
+<ParamField body="name" type="string" required>
+  New display name for the schedule. Maximum 50 characters.
+</ParamField>
+
+## Response
+
+Returns the updated `SavedSchedule` object.
+
+<ResponseField name="id" type="string" required>
+  UUID of the saved schedule.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Updated display name.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of when the schedule was originally saved. This value is not changed by an update.
+</ResponseField>
+
+<ResponseField name="sections" type="object[]" required>
+  The sections associated with this saved schedule (unchanged).
+
+  <Expandable title="section properties">
+    <ResponseField name="sectionId" type="string" required>
+      UUID of the section.
+    </ResponseField>
+
+    <ResponseField name="subject" type="string" required>
+      Name of the subject.
+    </ResponseField>
+
+    <ResponseField name="professor" type="string | null" required>
+      Full name of the professor, or `null` if unassigned.
+    </ResponseField>
+
+    <ResponseField name="startTime" type="string" required>
+      Start time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="endTime" type="string" required>
+      End time in `HH:MM` format (24-hour, UTC).
+    </ResponseField>
+
+    <ResponseField name="days" type="string[]" required>
+      Days of the week this section meets.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+|--------|-------------|
+| `400 Bad Request` | Validation failed (e.g. `name` exceeds 50 characters or is empty). |
+| `401 Unauthorized` | Missing or invalid Bearer token. |
+| `404 Not Found` | No saved schedule with the given ID exists for the authenticated user. |
+
+<RequestExample>
+
+```bash cURL
+curl --request PUT \
+  --url http://localhost:3000/api/saved-schedules/a9b8c7d6-e5f4-3210-9876-fedcba543210 \
+  --header 'Authorization: Bearer '$ACCESS_TOKEN \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "Updated schedule name"
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "id": "a9b8c7d6-e5f4-3210-9876-fedcba543210",
+  "name": "Updated schedule name",
+  "createdAt": "2026-03-15T10:30:00.000Z",
+  "sections": [
+    {
+      "sectionId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "subject": "Calculus II",
+      "professor": "Dr. Maria Lopez",
+      "startTime": "08:00",
+      "endTime": "09:30",
+      "days": ["Monday", "Wednesday", "Friday"]
+    },
+    {
+      "sectionId": "d4e5f6a7-b8c9-0123-defa-234567890123",
+      "subject": "Introduction to Programming",
+      "professor": "Prof. James Carter",
+      "startTime": "10:00",
+      "endTime": "11:30",
+      "days": ["Tuesday", "Thursday"]
+    }
+  ]
+}
+```
+
+```json 400
+{
+  "statusCode": 400,
+  "message": ["name must be shorter than or equal to 50 characters"],
+  "error": "Bad Request"
+}
+```
+
+```json 401
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+```json 404
+{
+  "statusCode": 404,
+  "message": "Saved schedule not found",
+  "error": "Not Found"
+}
+```
+
+</ResponseExample>

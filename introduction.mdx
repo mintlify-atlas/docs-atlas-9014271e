@@ -1,0 +1,89 @@
+---
+title: Introduction
+description: Scheduly API — intelligent academic schedule optimizer for university students
+---
+
+# Scheduly API
+
+Scheduly API is a NestJS REST API that generates optimized academic schedules for university students. It uses a two-phase backtracking algorithm with a rule-based scoring system to find the best schedule combinations based on your preferences.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Set up and make your first API call in minutes
+  </Card>
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Learn how JWT auth and refresh tokens work
+  </Card>
+  <Card title="Scheduling Engine" icon="brain" href="/concepts/scheduling-engine">
+    Understand the backtracking + scoring algorithm
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/auth/register">
+    Explore every endpoint with examples
+  </Card>
+</CardGroup>
+
+## What is Scheduly API?
+
+University students often face the challenge of building a semester schedule that fits multiple constraints: avoiding early morning classes, minimizing gaps between lectures, keeping certain days free, or avoiding specific professors. Scheduly API solves this by:
+
+1. Accepting a list of subjects (courses) you need to enroll in
+2. Applying your configured preference rules (e.g., no early mornings, compact days)
+3. Running a backtracking search over all valid section combinations
+4. Returning the **top 3 optimized schedules** ranked by score
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Backtracking optimizer" icon="sitemap">
+    Explores all conflict-free combinations and ranks them by a weighted score derived from your rules
+  </Card>
+  <Card title="11 rule types" icon="sliders">
+    Configure preferences like no gaps, morning/afternoon preference, free days, lunch break protection, and more
+  </Card>
+  <Card title="JWT + refresh tokens" icon="shield-check">
+    Secure authentication with short-lived access tokens and HttpOnly cookie-based refresh tokens
+  </Card>
+  <Card title="Full data ownership" icon="database">
+    Each user manages their own subjects, professors, sections, rules, and saved schedules
+  </Card>
+</CardGroup>
+
+## Tech stack
+
+| Component | Technology |
+|---|---|
+| Runtime | Node.js 20.x |
+| Framework | NestJS 11 |
+| Language | TypeScript 5.x |
+| Database | PostgreSQL 14+ |
+| ORM | Prisma 7.x |
+| Auth | JWT + Refresh Tokens (HttpOnly cookies) |
+| Docs | Swagger / OpenAPI |
+
+## How it works
+
+<Steps>
+  <Step title="Register and authenticate">
+    Create an account and obtain a JWT access token. All resource endpoints require a valid Bearer token.
+  </Step>
+  <Step title="Create your data">
+    Add the subjects you want to take, the professors who teach them, and the sections (time slots) available.
+  </Step>
+  <Step title="Configure optimization rules">
+    Define rules ranked by priority — for example, avoid early mornings at priority 1, prefer morning classes at priority 2, and no gaps at priority 3.
+  </Step>
+  <Step title="Generate schedules">
+    Call `POST /api/scheduling/generate` with the subject IDs you want. The engine returns the top 3 schedules scored by your rules.
+  </Step>
+  <Step title="Save your preferred schedule">
+    Persist the schedule you like best with `POST /api/saved-schedules` so you can retrieve it later.
+  </Step>
+</Steps>
+
+## Base URL
+
+```
+http://localhost:3000/api
+```
+
+Interactive Swagger documentation is available at `http://localhost:3000/docs` once the server is running.

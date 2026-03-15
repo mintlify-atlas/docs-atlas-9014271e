@@ -1,0 +1,59 @@
+---
+title: Delete subject
+description: Delete a subject belonging to the authenticated user.
+---
+
+`DELETE /api/subjects/:id`
+
+<Warning>
+  This action is irreversible. Deleting a subject will also cascade-delete any sections associated with it.
+</Warning>
+
+<Note>
+  This endpoint requires authentication. Include a valid Bearer token in the `Authorization` header.
+</Note>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the subject to delete.
+</ParamField>
+
+## Response
+
+**204 No Content** — The subject was successfully deleted. No response body is returned.
+
+## Examples
+
+<RequestExample>
+
+```bash cURL
+curl --request DELETE \
+  --url http://localhost:3000/api/subjects/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+  --header 'Authorization: Bearer $ACCESS_TOKEN'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 204
+
+```
+
+</ResponseExample>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `401 Unauthorized` | No token provided or the token is invalid. |
+| `404 Not Found` | No subject with the given ID exists for the authenticated user. |

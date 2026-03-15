@@ -1,0 +1,150 @@
+---
+title: Setup
+description: Complete installation and setup guide for running the Scheduly API.
+---
+
+## System requirements
+
+Before you begin, make sure your environment meets the following prerequisites:
+
+- **Node.js** 20.x
+- **npm** (bundled with Node.js)
+- **PostgreSQL** 14 or higher
+- **Git**
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/JhojanRop/scheduly-api.git
+    cd scheduly-api
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+
+    This installs all runtime and development dependencies defined in `package.json`, including NestJS, Prisma, Passport, and Jest.
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the project root. You can use the example below as a starting point:
+
+    ```env
+    DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/scheduly_db?schema=public"
+    JWT_SECRET="your_jwt_secret_key"
+    NODE_ENV="development"
+    PORT=3000
+    CORS_ORIGIN="http://localhost:5173"
+    ```
+
+    <Note>
+      See the [Environment variables](/guides/environment) guide for a full description of each variable and security best practices.
+    </Note>
+  </Step>
+
+  <Step title="Set up the database">
+    Apply database migrations and seed the initial data:
+
+    ```bash
+    npx prisma migrate dev
+    npx prisma db seed
+    ```
+
+    <Note>
+      See the [Database](/guides/database) guide for detailed instructions on migrations and seeding.
+    </Note>
+  </Step>
+
+  <Step title="Start the development server">
+    ```bash
+    npm run start:dev
+    ```
+
+    The API will be available at `http://localhost:3000/api`. The server restarts automatically when you save file changes.
+  </Step>
+</Steps>
+
+## Verifying the installation
+
+Once the server is running, open the interactive Swagger documentation:
+
+```
+http://localhost:3000/docs
+```
+
+You should see the Scheduly API documentation with all available endpoints.
+
+## Running in production
+
+For production deployments, build the project first, then start the compiled output:
+
+<Steps>
+  <Step title="Build the project">
+    ```bash
+    npm run build
+    ```
+
+    The NestJS CLI compiles TypeScript to JavaScript and outputs the result to the `dist/` directory.
+  </Step>
+
+  <Step title="Start the production server">
+    ```bash
+    npm run start:prod
+    ```
+
+    This runs `node dist/main` directly — no live reload or TypeScript compilation overhead.
+  </Step>
+</Steps>
+
+<Warning>
+  Set `NODE_ENV="production"` and use a strong, randomly generated `JWT_SECRET` in your production `.env`. Never reuse development secrets.
+</Warning>
+
+## Available npm scripts
+
+| Script | Command | Description |
+|---|---|---|
+| `build` | `nest build` | Compiles TypeScript to `dist/` |
+| `start` | `nest start` | Starts the server once (no watch) |
+| `start:dev` | `nest start --watch` | Starts with live reload for development |
+| `start:debug` | `nest start --debug --watch` | Starts with Node.js debugger and live reload |
+| `start:prod` | `node dist/main` | Runs the compiled production build |
+| `lint` | `eslint ... --fix` | Lints and auto-fixes TypeScript source files |
+| `format` | `prettier --write ...` | Formats source and test files with Prettier |
+| `test` | `jest` | Runs all unit tests |
+| `test:watch` | `jest --watch` | Runs tests in watch mode |
+| `test:cov` | `jest --coverage` | Runs tests and generates a coverage report |
+| `test:e2e` | `jest --config ./test/jest-e2e.json` | Runs end-to-end tests |
+| `test:debug` | `node --inspect-brk ... jest --runInBand` | Runs tests with Node.js debugger attached |
+
+## Running tests
+
+<CodeGroup>
+
+```bash Run all unit tests
+npm run test
+```
+
+```bash Run tests with coverage
+npm run test:cov
+```
+
+```bash Run end-to-end tests
+npm run test:e2e
+```
+
+```bash Run tests in watch mode
+npm run test:watch
+```
+
+</CodeGroup>
+
+Coverage reports are written to the `coverage/` directory. Test files follow the `*.spec.ts` naming convention and live alongside their source modules under `src/`.
+
+<Tip>
+  Run `npm run test:cov` before opening a pull request to confirm you haven't reduced coverage on existing modules.
+</Tip>

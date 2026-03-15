@@ -1,122 +1,125 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Scheduly API",
+  "theme": "sequoia",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#8b8c8c",
+    "light": "#232323",
+    "dark": "#cacacb"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://icons.duckduckgo.com/ip3/conventionalcommits.org.ico",
+  "logo": {
+    "light": "https://media.brand.dev/4a4fdaf0-7de9-4270-abbb-732f0535d99d.svg",
+    "dark": "https://media.brand.dev/4a4fdaf0-7de9-4270-abbb-732f0535d99d.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/JhojanRop/scheduly-api"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/JhojanRop/scheduly-api"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "authentication"]
+          },
+          {
+            "group": "Core Concepts",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "concepts/architecture",
+              "concepts/scheduling-engine",
+              "concepts/rules"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Guides",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
-          },
-          {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/setup",
+              "guides/database",
+              "guides/environment"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Auth",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/auth/register",
+              "api-reference/auth/login",
+              "api-reference/auth/refresh",
+              "api-reference/auth/logout"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Subjects",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/subjects/create",
+              "api-reference/subjects/list",
+              "api-reference/subjects/get",
+              "api-reference/subjects/update",
+              "api-reference/subjects/delete"
+            ]
+          },
+          {
+            "group": "Professors",
+            "pages": [
+              "api-reference/professors/create",
+              "api-reference/professors/list",
+              "api-reference/professors/get",
+              "api-reference/professors/update",
+              "api-reference/professors/delete"
+            ]
+          },
+          {
+            "group": "Sections",
+            "pages": [
+              "api-reference/sections/create",
+              "api-reference/sections/list",
+              "api-reference/sections/get",
+              "api-reference/sections/update",
+              "api-reference/sections/delete"
+            ]
+          },
+          {
+            "group": "Rules",
+            "pages": [
+              "api-reference/rules/create",
+              "api-reference/rules/list",
+              "api-reference/rules/get",
+              "api-reference/rules/update",
+              "api-reference/rules/delete"
+            ]
+          },
+          {
+            "group": "Scheduling",
+            "pages": [
+              "api-reference/scheduling/generate"
+            ]
+          },
+          {
+            "group": "Saved Schedules",
+            "pages": [
+              "api-reference/saved-schedules/create",
+              "api-reference/saved-schedules/list",
+              "api-reference/saved-schedules/get",
+              "api-reference/saved-schedules/update",
+              "api-reference/saved-schedules/delete"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

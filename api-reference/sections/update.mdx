@@ -1,0 +1,149 @@
+---
+title: Update section
+description: Replace all fields of an existing section. All body fields are required.
+---
+
+`PUT /api/sections/:id`
+
+<Note>
+  All endpoints require an `Authorization: Bearer <access_token>` header. Data is scoped to the authenticated user.
+</Note>
+
+<Warning>
+  This is a full replacement — all body fields must be provided. Any fields omitted will be cleared or reset.
+</Warning>
+
+## Request
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token. Format: `Bearer <access_token>`
+</ParamField>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  UUID of the section to update.
+</ParamField>
+
+### Body
+
+<ParamField body="startTime" type="string" required placeholder="07:00">
+  Section start time in `HH:MM` 24-hour format.
+</ParamField>
+
+<ParamField body="endTime" type="string" required placeholder="09:00">
+  Section end time in `HH:MM` 24-hour format.
+</ParamField>
+
+<ParamField body="subjectId" type="string" required>
+  UUID of the subject this section belongs to. Must be owned by the authenticated user.
+</ParamField>
+
+<ParamField body="professorId" type="string">
+  UUID of the professor assigned to this section. Must be owned by the authenticated user. Omit or set to `null` to remove the professor assignment.
+</ParamField>
+
+<ParamField body="dayIds" type="number[]" required placeholder="[1, 3, 5]">
+  Array of day numbers on which this section meets. Replaces all existing days. Values 1–7 where 1 = Monday and 7 = Sunday.
+</ParamField>
+
+## Response
+
+`200 OK`
+
+<ResponseField name="id" type="string" required>
+  UUID of the section.
+</ResponseField>
+
+<ResponseField name="startTime" type="string" required>
+  Start time in `HH:MM` format.
+</ResponseField>
+
+<ResponseField name="endTime" type="string" required>
+  End time in `HH:MM` format.
+</ResponseField>
+
+<ResponseField name="subject" type="object" required>
+  The subject this section belongs to.
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      UUID of the subject.
+    </ResponseField>
+    <ResponseField name="name" type="string" required>
+      Name of the subject.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="professor" type="object | null" required>
+  The assigned professor, or `null` if none.
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      UUID of the professor.
+    </ResponseField>
+    <ResponseField name="fullName" type="string">
+      Full name of the professor.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="days" type="string[]" required>
+  Updated list of day names on which this section meets.
+</ResponseField>
+
+## Error responses
+
+| Status | Description |
+| ------ | ----------- |
+| `400 Bad Request` | Invalid request body (missing fields, wrong format, invalid `dayIds` values). |
+| `401 Unauthorized` | Missing or invalid bearer token. |
+| `404 Not Found` | Section, `subjectId`, or `professorId` does not exist or does not belong to the authenticated user. |
+
+<RequestExample>
+
+```bash cURL
+curl --request PUT \
+  --url http://localhost:3000/api/sections/c3d4e5f6-a7b8-9012-cdef-123456789012 \
+  --header 'Authorization: Bearer $ACCESS_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "startTime": "08:00",
+    "endTime": "10:00",
+    "subjectId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "professorId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "dayIds": [2, 4]
+  }'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+  "startTime": "08:00",
+  "endTime": "10:00",
+  "subject": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Calculus I"
+  },
+  "professor": {
+    "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "fullName": "Dr. Jane Smith"
+  },
+  "days": ["Tuesday", "Thursday"]
+}
+```
+
+```json 404
+{
+  "statusCode": 404,
+  "message": "Section not found",
+  "error": "Not Found"
+}
+```
+
+</ResponseExample>

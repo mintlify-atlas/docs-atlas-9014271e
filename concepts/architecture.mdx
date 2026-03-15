@@ -1,0 +1,149 @@
+---
+title: Architecture
+description: Layered architecture overview of the Scheduly API — modules, data models, and request flow.
+---
+
+Schedululy API is a NestJS application structured into focused modules, each responsible for a single domain. This page walks through the directory layout, module responsibilities, database schema, and how an HTTP request travels through the stack.
+
+## Directory structure
+
+```text
+src/
+├── auth/                  # JWT authentication, guards, decorators
+├── users/                 # User account management
+├── subjects/              # Course/subject CRUD
+├── professors/            # Professor CRUD
+├── sections/              # Section (time slot) CRUD
+├── rules/                 # User preference rules CRUD
+├── scheduling/            # Schedule optimizer
+│   ├── engine/            # Backtracking algorithm
+│   ├── pruning/           # Phase 1: hard-constraint filtering
+│   └── rules/             # Phase 2: scoring strategies (Strategy Pattern)
+│       └── strategies/    # One file per rule type
+├── saved-schedules/       # Persisting generated schedules
+├── prisma/                # PrismaService (database client wrapper)
+└── types/                 # Shared TypeScript types
+```
+
+## Modules
+
+<CardGroup cols={3}>
+  <Card title="auth" icon="lock">
+    Issues and validates JWT access tokens. Provides `JwtAuthGuard` and the `@CurrentUser()` decorator used across all protected controllers.
+  </Card>
+  <Card title="users" icon="user">
+    Manages user accounts. Each user owns their subjects, professors, sections, rules, and saved schedules — all records cascade-delete with the user.
+  </Card>
+  <Card title="subjects" icon="book">
+    Stores the courses a user wants to schedule. Each subject links to one or more sections.
+  </Card>
+  <Card title="professors" icon="chalkboard-user">
+    Stores professor records scoped to a user. Sections optionally reference a professor.
+  </Card>
+  <Card title="sections" icon="calendar">
+    Represents a single time slot offering of a subject: start time, end time, professor, and one or more days of the week via `SectionDay`.
+  </Card>
+  <Card title="rules" icon="sliders">
+    Stores ordered preference rules for a user. Each rule has a `type`, a `priorityOrder`, and optional `parameters`. Consumed directly by the scheduling engine.
+  </Card>
+  <Card title="scheduling" icon="brain">
+    The optimizer. Accepts subject IDs, loads sections and rules from the database, runs the two-phase engine, and returns the top 3 ranked schedules.
+  </Card>
+  <Card title="saved-schedules" icon="bookmark">
+    Persists a named schedule (a set of section IDs) so users can retrieve previously generated results.
+  </Card>
+  <Card title="prisma" icon="database">
+    Wraps `PrismaClient` as a NestJS injectable service. Injected into every feature module that needs database access.
+  </Card>
+</CardGroup>
+
+## Database schema
+
+The schema is defined in `prisma/schema.prisma` and targets PostgreSQL.
+
+### Data models
+
+| Model | Table | Key fields |
+|---|---|---|
+| `User` | `user` | `id` (UUID), `username` (unique), `fullName`, `createdAt` |
+| `Subject` | `subjects` | `id`, `name`, `userId` → `User` |
+| `Professor` | `professors` | `id`, `fullName`, `userId` → `User` (nullable) |
+| `Section` | `sections` | `id`, `startTime`, `endTime`, `subjectId` → `Subject`, `professorId` → `Professor` (nullable) |
+| `SectionDay` | `sections_days` | `id`, `sectionId` → `Section`, `dayId` → `Day` |
+| `Day` | `days` | `id` (1–7), `name` (seeded, e.g. `"Monday"`) |
+| `Rule` | `rules` | `id`, `type` (varchar), `priorityOrder`, `parameters` (JSON, nullable), `userId` → `User` |
+| `SavedSchedule` | `saved_schedules` | `id`, `name`, `createdAt`, `userId` → `User` |
+| `ScheduleSection` | `schedules_sections` | composite PK (`scheduleId`, `sectionId`) |
+
+### Relationships
+
+- A **User** owns many Subjects, Professors, Rules, and SavedSchedules. Deleting a user cascades to all owned records.
+- A **Subject** has many **Sections**. Deleting a subject cascades to its sections.
+- A **Section** has many **SectionDays** (linking it to weekdays) and belongs to one **Subject** and optionally one **Professor**.
+- A **SavedSchedule** is linked to many **Sections** through the `ScheduleSection` join table.
+
+```prisma
+model Section {
+  id          String   @id @default(uuid())
+  startTime   DateTime @map("start_time") @db.Timetz()
+  endTime     DateTime @map("end_time") @db.Timetz()
+  subjectId   String   @map("subject_id")
+  professorId String?  @map("professor_id")
+
+  subject           Subject           @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  professor         Professor?        @relation(fields: [professorId], references: [id], onDelete: SetNull)
+  sectionDays       SectionDay[]
+  schedulesSections ScheduleSection[]
+
+  @@map("sections")
+}
+```
+
+## Request flow
+
+<Steps>
+  <Step title="HTTP request arrives">
+    NestJS routes the request to the appropriate controller based on the path and method. Every controller in Scheduly API is protected by `JwtAuthGuard` at the class level.
+  </Step>
+  <Step title="JWT validation">
+    `JwtAuthGuard` extracts the Bearer token from the `Authorization` header, verifies it with `JWT_SECRET`, and attaches the decoded user payload to the request. The `@CurrentUser()` decorator then injects the `User` record into the handler.
+  </Step>
+  <Step title="DTO validation">
+    NestJS's `ValidationPipe` (configured globally) validates the request body against the DTO class. For example, `GenerateScheduleDto` enforces that `subjectIds` is a non-empty array of valid UUIDs using `class-validator` decorators.
+  </Step>
+  <Step title="Service layer">
+    The controller delegates to its service, passing the validated DTO and the current user's ID. The service uses `PrismaService` to query the database — loading sections, rules, or other records as needed.
+  </Step>
+  <Step title="Engine or database operation">
+    For most modules, the service performs a direct Prisma CRUD operation and returns the result. For the `scheduling` module, the service instantiates `SchedulingEngine`, passes the prepared data, and returns the scored results.
+  </Step>
+  <Step title="Response">
+    The service returns a plain object or DTO instance. NestJS serializes it to JSON and sends the HTTP response.
+  </Step>
+</Steps>
+
+## Authentication integration
+
+Authentication is enforced at the controller level using the `JwtAuthGuard`. Every feature module imports the guard from `src/auth/guards/jwt-auth.guard` — there is no global guard override, so every protected controller must declare `@UseGuards(JwtAuthGuard)`.
+
+All database queries in feature services include a `userId` filter so users can only access their own data:
+
+```typescript
+const sections = await this.prisma.section.findMany({
+  where: {
+    subject: {
+      id: { in: dto.subjectIds },
+      userId,          // scoped to the authenticated user
+    },
+  },
+  include: {
+    subject: true,
+    professor: true,
+    sectionDays: { include: { day: true } },
+  },
+});
+```
+
+<Note>
+  Refresh tokens are stored as HttpOnly cookies and are handled exclusively by the `auth` module. Feature modules never deal with token issuance or rotation.
+</Note>

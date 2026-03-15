@@ -1,0 +1,130 @@
+{
+  "projectType": "api-service",
+  "projectName": "Scheduly API",
+  "projectDescription": "A NestJS REST API that generates optimized academic schedules for university students using a backtracking algorithm with a rule-based scoring system.",
+  "theme": "sequoia",
+  "primaryColor": "#8b8c8c",
+  "lightColor": "#232323",
+  "darkColor": "#cacacb",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart", "authentication"]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/scheduling-engine",
+              "concepts/rules"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/database",
+              "guides/environment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Auth",
+            "pages": [
+              "api-reference/auth/register",
+              "api-reference/auth/login",
+              "api-reference/auth/refresh",
+              "api-reference/auth/logout"
+            ]
+          },
+          {
+            "group": "Subjects",
+            "pages": [
+              "api-reference/subjects/create",
+              "api-reference/subjects/list",
+              "api-reference/subjects/get",
+              "api-reference/subjects/update",
+              "api-reference/subjects/delete"
+            ]
+          },
+          {
+            "group": "Professors",
+            "pages": [
+              "api-reference/professors/create",
+              "api-reference/professors/list",
+              "api-reference/professors/get",
+              "api-reference/professors/update",
+              "api-reference/professors/delete"
+            ]
+          },
+          {
+            "group": "Sections",
+            "pages": [
+              "api-reference/sections/create",
+              "api-reference/sections/list",
+              "api-reference/sections/get",
+              "api-reference/sections/update",
+              "api-reference/sections/delete"
+            ]
+          },
+          {
+            "group": "Rules",
+            "pages": [
+              "api-reference/rules/create",
+              "api-reference/rules/list",
+              "api-reference/rules/get",
+              "api-reference/rules/update",
+              "api-reference/rules/delete"
+            ]
+          },
+          {
+            "group": "Scheduling",
+            "pages": [
+              "api-reference/scheduling/generate"
+            ]
+          },
+          {
+            "group": "Saved Schedules",
+            "pages": [
+              "api-reference/saved-schedules/create",
+              "api-reference/saved-schedules/list",
+              "api-reference/saved-schedules/get",
+              "api-reference/saved-schedules/update",
+              "api-reference/saved-schedules/delete"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "JWT authentication with HttpOnly cookie-based refresh tokens",
+    "Backtracking algorithm that finds the top 3 optimal schedule combinations",
+    "Rule-based scoring system with 11 configurable rule types and priority ordering",
+    "Two-phase optimization: pruning phase (hard constraints) + scoring phase (soft preferences)",
+    "Full CRUD for subjects, professors, sections, and optimization rules",
+    "Saved schedules for persisting preferred schedule combinations",
+    "Swagger/OpenAPI interactive documentation at /docs",
+    "PostgreSQL backend with Prisma ORM"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/register",
+    "POST /api/auth/login",
+    "POST /api/auth/refresh",
+    "POST /api/auth/logout",
+    "GET/POST/PUT/DELETE /api/subjects",
+    "GET/POST/PUT/DELETE /api/professors",
+    "GET/POST/PUT/DELETE /api/sections",
+    "GET/POST/PUT/DELETE /api/rules",
+    "POST /api/scheduling/generate",
+    "GET/POST/PUT/DELETE /api/saved-schedules"
+  ]
+}
